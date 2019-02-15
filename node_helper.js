@@ -29,6 +29,7 @@ module.exports = NodeHelper.create({
             break
         case "REQUEST_STOCK_DATA":
             console.log("[PortfolioPerformance] Start scraping stock data.")
+            console.log(payload)
             this.stocks = payload;
             this.startPooling();
             break
@@ -55,7 +56,12 @@ module.exports = NodeHelper.create({
     
     var timer = setTimeout(()=>{
       this.startPooling()
-    }, 40000) // Every 20 seconds a stock is requested
+    }, 20000) // Every 20 seconds a stock is requested
+    }
+    else
+    {
+          console.log("All stocks scraped")
+          this.sendSocketNotification("FINISHED_REQUEST_STOCK_DATA", 0);       
     }
   },
   

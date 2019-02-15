@@ -19,6 +19,7 @@ Module.register("MMM-PortfolioPerformance",{
 	
 	start: function (){
 	  this.stock_data = [];
+	  this.stocks_portfolio = [];
 	  this.sendSocketNotification("INIT", this.config);
 	},
 
@@ -64,23 +65,40 @@ Module.register("MMM-PortfolioPerformance",{
 		break
 	      case "CSV_DATA":
 		console.log("GOT CSV DATA")
-		csvArray = this.getArrayCSV(payload)
+		var csvArray = this.getArrayCSV(payload)
 		csvArray.sort(function(a,b){
-		  // Turn your strings into dates, and then subtract them
-		  // to get a value that is either negative, positive, or zero.
 		  return new Date(a.Date) - new Date(b.Date);
 		});
 		var stocks = getCol(csvArray, "Ticker Symbol");
 		var stocks_unique = stocks.filter( onlyUnique );
-		var stock_request = this.config.benchmark.concat(stocks_unique);
-		this.sendSocketNotification("REQUEST_STOCK_DATA", stock_request)
-		//this.plot(csvArray)
+		// save all unique portfolio stocks in global variable
+		this.stocks_portfolio = stocks_unique
+		var stock_request = this.config.benchmark.concat(stocks);
+		var stocks_unique_all = stock_request.filter( onlyUnique );
+		this.sendSocketNotification("REQUEST_STOCK_DATA", stocks_unique_all)
+		
+		// prepare portfolio performance array for each stock
+		for (var i = 0; i < stocks_unique.length; i++)
+		{
+		  this.stock_basic_value = [];
+		  this.stock_basic_value[stocks_unique[i]] = [];
+		  for (var j = 0; j < this.config.timeframes.length; j++)
+		  {
+		     this.stock_basic_value[stocks_unique[i]].push(0);
+		  }
+		}
+		console.log(this.stock_basic_value)
+		this.csvArray = csvArray
 		break
 	      case "NEW_STOCK_DATA":
 		console.log("GOT STOCK DATA")
 		this.stock_data.push(payload);
 		var test = 0;
-		this.updatePlot();
+		this.updatePlot(this.config.timeframes[0]);
+		break
+	      case "FINISHED_REQUEST_STOCK_DATA":
+		console.log("FINISHED_REQUEST_STOCK_DATA")
+		this.plotTimeframes(1);
 		break
 	    }
 	  },
@@ -109,6 +127,14 @@ Module.register("MMM-PortfolioPerformance",{
 	
 	get_price_pastdate: function(data_stock, date)
 	{
+	  data_stock.sort(function(a, b) {
+	      var distancea = Math.abs(new Date(date) - new Date(a.date));
+	      var distanceb = Math.abs(new Date(date) - new Date(b.date));
+	      return distancea - distanceb; // sort a before b when the distance is smaller
+	  });
+	  var close = data_stock[0]["close"];
+	  return parseFloat(close);
+
 	  for (var i = 0; i < data_stock.length; i++)
 	    {
 		if(data_stock[i]["date"] == date)
@@ -119,47 +145,59 @@ Module.register("MMM-PortfolioPerformance",{
 		return 0;
 	},
 	
-	get_plot_data: function(stock_data)
+	get_plot_data: function(data_stocks, timeframe)
 	{
 	  var d = new Date();
-	  d.setMonth(d.getMonth() - 2);
+	  d.setMonth(d.getMonth() - timeframe);
 	  console.log(d.toISOString())
 	  var date_threshold = d.toISOString().split("T");
 	  date_threshold = date_threshold[0];
 	  var data = [];
-	  for (var j = 0; j < stock_data.length; j++)
+	  for (var j = 0; j < data_stocks.length; j++)
 	  {
-	    performance_root = this.get_price_pastdate(stock_data[j], date_threshold)
-	    var datapoints = [];
-	    for (var i = 0; i < stock_data[j].length; i++)
+	    if (this.config.benchmark.includes(data_stocks[j][0]["symbol"]))
 	    {
-	      var stock_line = stock_data[j][i];
-	      if(stock_line["date"] > date_threshold)
+	      var performance_root = this.get_price_pastdate(data_stocks[j], date_threshold)
+	      var datapoints = [];
+	      for (var i = 0; i < data_stocks[j].length; i++)
 	      {
-		  var value_str = stock_line["close"].replace(",","");
-		  var value = (parseFloat(value_str) / performance_root - 1)*100;
-		  datapoints.push({x: new Date(stock_line["date"]), y: value});
+		var stock_line = data_stocks[j][i];
+		if(stock_line["date"] > date_threshold)
+		{
+		    var value_str = stock_line["close"].replace(",","");
+		    var value = (parseFloat(value_str) / performance_root - 1)*100;
+		    datapoints.push({x: new Date(stock_line["date"]), y: value});
+		}
 	      }
-	    }
 	    
 	    data.push({        
 		type: "line",  
-		name: stock_data[j][0]["symbol"],   
+		name: this.config.benchmark_label[this.config.benchmark.indexOf(data_stocks[j][0]["symbol"])],   
 		showInLegend: true,
 		xValueFormatString: "DD MMM, YYYY",
 		dataPoints: datapoints
 	    })
+	    }
 	  }
 	  return data;
 	  
 	},
 	
-	updatePlot: function() {
-	    console.log(this.stock_data);
-	    var data = this.get_plot_data(this.stock_data)
-	    console.log(data);
-	    this.plot_stocks(data)
+	plotTimeframes: function(timeframe_index){
+	  this.updatePlot(this.config.timeframes[timeframe_index])
+	  
+	  var timer = setTimeout(()=>{
+	    timeframe_index ++;
+	    var new_index = timeframe_index%this.config.timeframes.length;
+	    this.plotTimeframes(new_index)
+	  }, 10000)
+	},
 	
+	updatePlot: function(timeframe) {
+	    console.log(this.stock_data);
+	    var data = this.get_plot_data(this.stock_data, timeframe)
+	    console.log(data);
+	    this.plot_stocks(data);
 	},
 	
 	plot_stocks: function(data_stocks){
@@ -171,8 +209,12 @@ Module.register("MMM-PortfolioPerformance",{
 		  text: "Portfolio Performance"
 	  },
 	  axisY:{
+		  valueFormatString:  "##.#",
+		  suffix: "%",
+		  labels: {
+		      align: 'right',
+		  },
 		  includeZero: false,
-		  reversed: true,
 	  },
 	  data: data_stocks
 	  });
