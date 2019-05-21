@@ -50,13 +50,13 @@ module.exports = NodeHelper.create({
     if(this.stocks.length > 0)
     {
     stock = this.stocks[0]
-    console.log("Start scraping stock: " + stock)
+    console.log("[PortfolioPerformance] Start scraping stock: " + stock)
     this.stocks.shift();
     this.callAPI(this.config, stock);
     
     var timer = setTimeout(()=>{
       this.startPooling()
-    }, 20000) // Every 20 seconds a stock is requested
+    }, 20000) // Every 30 seconds a stock is requested
     }
     else
     {

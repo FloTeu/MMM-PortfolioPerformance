@@ -1,0 +1,5 @@
+Date;Type;Value;Transaction Currency;Gross Amount;Currency Gross Amount;Exchange Rate;Fees;Taxes;Shares;ISIN;WKN;Ticker Symbol;Security Name;Note
+2017-11-07T00:00;Buy;145.00;EUR;;;;1.02;0.00;2.939;;;X010.DE;ETF: MSCI World;Generiert von Sparplan 'MSCI World' am 30.12.2018 17:01
+2017-11-07T00:00;Buy;59.96;EUR;;;;0.00;0.00;1.4;;;E127.DE;ETF: Emerging Markets;Generiert von Sparplan 'Emerging Markets' am 30.12.2018 17:21
+2016-06-06T00:00;Buy;994.65;EUR;;;;12.35;0.00;11;;;BAYN.DE;Bayer;
+2016-06-06T00:00;Sell;1000.65;EUR;;;;12.35;0.00;11;;;BAYN.DE;Bayer;
